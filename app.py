@@ -116,7 +116,7 @@ page = st.sidebar.radio(
         "💰 成本敏感實驗室",
         "🎚️ 風控策略模擬器",
         "🔍 XAI 模型解釋",
-        "📚 研究設計與成果",
+        "🎯 系統主要功能與應用對象",
     ],
 )
 
@@ -191,7 +191,10 @@ if page == "🏠 風控總覽":
         bins = pd.cut(df_eval["xgb_prob"], bins=[0, .1, .3, .5, .7, .9, 1], include_lowest=True)
         dist = pd.crosstab(bins, df_eval["Class"])
         dist.columns = ["Normal", "Fraud"]
-        st.bar_chart(dist)
+        dist = dist.reset_index()
+        dist.columns = ["風險區間", "Normal", "Fraud"]
+        dist["風險區間"] = dist["風險區間"].astype(str)
+        st.bar_chart(dist, x="風險區間", y=["Normal", "Fraud"])
         st.caption("XGBoost 分數越高，代表模型判定為詐欺的機率越高。")
     with right:
         st.markdown("### 🧭 銀行怎麼處理？")
@@ -325,7 +328,9 @@ elif page == "💰 成本敏感實驗室":
     )
 
     st.markdown("### 🔄 成本情境變化")
-    st.line_chart(sdf.set_index("FN:FP")[["Test FP", "Test FN"]])
+    cost_chart = sdf[["FN:FP", "Test FP", "Test FN"]].copy()
+    cost_chart = cost_chart.rename(columns={"FN:FP": "成本情境", "Test FP": "誤報 FP", "Test FN": "漏報 FN"})
+    st.line_chart(cost_chart, x="成本情境", y=["誤報 FP", "漏報 FN"])
     st.caption("圖表只呈現三個已由 Validation 決定的成本情境，不把 Test Set 拿來重新挑門檻。")
 
     st.markdown("### 👥 有限人工審核能力：Top-K")
@@ -421,69 +426,142 @@ elif page == "🔍 XAI 模型解釋":
         st.caption("只代表目前 Streamlit 執行環境中的 scaler + XGBoost 推論時間，不等於銀行端到端系統延遲。")
 
 # ---------- Page 7 ----------
-elif page == "📚 研究設計與成果":
-    st.subheader("研究設計：每一個結果從哪裡來？")
-    st.info("💡 **怎麼看？** 這一頁把資料、模型、門檻與網站展示串在一起，方便口試時說明研究可重現性。")
+elif page == "🎯 系統主要功能與應用對象":
+    st.subheader("🎯 系統主要功能與應用對象")
+    st.caption("從機器學習模型的預測結果，進一步轉換成可理解、可比較、可操作的信用卡交易風控資訊。")
+
+    st.markdown("### 01｜我們在做什麼？")
+    st.info(
+        "本系統以**信用卡交易詐欺風險管理**為核心，將機器學習模型的預測結果轉換成可以實際理解的風控資訊。"
+        "系統不只判斷交易是否可能涉及詐欺，也進一步整合**風險評分、成本敏感門檻、動態決策、模型比較與可解釋性分析**，"
+        "協助使用者從「模型預測」走到「風控決策」。"
+    )
 
     st.markdown(
         """
-        ### 🔬 研究流程
-        **284,807 筆原始交易**  
-        ↓  
-        **依 Time 排序**  
-        ↓  
-        **70% Train / 15% Validation / 15% Test**  
-        ↓  
-        **不平衡處理只發生在訓練階段**  
-        ↓  
-        **Logistic Regression / Isolation Forest / XGBoost**  
-        ↓  
-        **Validation Set：5:1、10:1、20:1 成本門檻選擇**  
-        ↓  
-        **Test Set：共同模型比較與最終驗證**  
-        ↓  
-        **SHAP + Top-K + Streamlit 風控決策原型**
-        """
+        <div style="
+            padding: 18px 20px;
+            border: 1px solid rgba(128,128,128,0.25);
+            border-radius: 14px;
+            text-align: center;
+            font-size: 1.05rem;
+            line-height: 2;
+            margin-bottom: 12px;
+        ">
+        <b>交易資料</b>　→　<b>模型分析</b>　→　<b>風險分數</b>　→　
+        <b>成本與門檻</b>　→　<b>風控處置</b>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    st.markdown("### 📦 資料切分")
-    split_df = pd.DataFrame({
-        "資料集": ["Train", "Validation", "Test"],
-        "筆數": [ds["train_n"], ds["validation_n"], ds["test_n"]],
-        "用途": ["模型訓練", "門檻與成本策略選擇", "最終無偏驗證"],
-    })
-    st.dataframe(split_df, use_container_width=True, hide_index=True)
-
-    st.markdown("### 🏆 專題成果")
-    x = metrics["models"]["XGBoost"]
-    q1, q2, q3, q4 = st.columns(4)
-    q1.metric("XGBoost PR-AUC", f"{x['pr_auc']:.4f}")
-    q2.metric("XGBoost F1", f"{x['f1']:.4f}")
-    q3.metric("FP / FN", f"{x['fp']} / {x['fn']}")
-    q4.metric("Recall @ Top-100", f"{metrics['top_k']['100']['recall_at_k']*100:.2f}%")
-
-    st.markdown("### ✅ 教授修改建議對應")
-    checklist = pd.DataFrame({
-        "要求": [
-            "三模型使用共同且未經 SMOTE 的 Test Set",
-            "5:1 / 10:1 / 20:1 門檻由 Validation 決定",
-            "首頁區分真實詐欺率與模型警報率",
-            "Threshold Slider 即時更新 TP / FP / FN / 成本",
-            "XGBoost 機率與 Isolation Forest 異常分數分開",
-            "SHAP 不把 PCA 特徵硬解釋成真實行為",
+    st.markdown("### 02｜五大主要功能")
+    function_df = pd.DataFrame({
+        "主要功能": [
+            "即時風險評分",
+            "多模型比較",
+            "成本敏感分析",
+            "動態風控決策",
+            "模型解釋 XAI",
         ],
-        "網站位置": [
-            "模型競技場", "成本敏感實驗室", "風控總覽",
-            "風控策略模擬器", "近即時交易回放 / XAI", "XAI 模型解釋"
+        "系統在做什麼": [
+            "使用 XGBoost 計算交易的詐欺風險，並轉換成可閱讀的風險資訊。",
+            "在相同 Test Set 比較 Logistic Regression、Isolation Forest 與 XGBoost。",
+            "比較 FN:FP = 5:1、10:1、20:1，觀察不同風險成本下的門檻與結果。",
+            "調整 Threshold 後，即時重新計算警報、TP、FP、FN、Recall、Precision 與成本。",
+            "使用 SHAP 說明 XGBoost 的重要特徵，並區分詐欺機率與異常分數。",
         ],
-        "狀態": ["完成"] * 6,
+        "可以回答的問題": [
+            "哪些交易需要優先注意？",
+            "不同模型的辨識效果有何差異？",
+            "漏報與誤報成本改變時，門檻如何調整？",
+            "攔截更嚴格或更寬鬆時，會產生什麼影響？",
+            "模型主要依據哪些匿名化特徵做判斷？",
+        ],
     })
-    st.dataframe(checklist, use_container_width=True, hide_index=True)
+    st.dataframe(function_df, use_container_width=True, hide_index=True)
 
-    st.markdown("### 🔭 可延伸的研究問題")
-    st.write(
-        "目前成本函數仍以固定 FN:FP 權重衡量錯誤。後續研究可加入**交易金額、人工審核成本與有限審核容量**，"
-        "研究不同交易與資源限制下的最適風控決策。"
+    st.markdown("### 03｜誰會使用這套系統？")
+    audience1, audience2, audience3 = st.columns(3)
+
+    with audience1:
+        st.markdown(
+            """
+            #### 🏦 金融機構風控人員
+            觀察高風險交易、警報率與異常交易。
+
+            系統可以協助風控人員辨識需要優先處理的交易，並依風險程度採取不同處置。
+            """
+        )
+
+    with audience2:
+        st.markdown(
+            """
+            #### 👨‍💼 風控主管與決策者
+            比較漏報與誤報的成本。
+
+            系統可以協助主管評估不同風險胃納下的 Threshold，並觀察門檻改變後的營運影響。
+            """
+        )
+
+    with audience3:
+        st.markdown(
+            """
+            #### 📊 模型與資料分析人員
+            比較不同模型的預測表現。
+
+            系統提供 PR-AUC、ROC-AUC、Precision、Recall、F1 與 SHAP 等資訊，協助檢視模型效果與解釋性。
+            """
+        )
+
+    st.markdown("### 04｜從模型結果到銀行風控處置")
+    process_df = pd.DataFrame({
+        "風險階段": ["低風險", "中度風險", "較高風險", "最高風險"],
+        "系統處置": ["Pass", "OTP / 3DS", "Manual Review", "Block"],
+        "決策目的": [
+            "正常授權，降低對一般客戶的干擾。",
+            "增加一次身分驗證，降低可疑交易風險。",
+            "交由風控人員進一步檢查。",
+            "優先阻擋高風險交易並進一步確認。",
+        ],
+    })
+    st.dataframe(process_df, use_container_width=True, hide_index=True)
+    st.caption("四級處置為本研究的風控決策原型，用於呈現模型分數如何轉換成不同管理行動，不代表特定銀行的實際作業規則。")
+
+    st.markdown("### 05｜這個網站的核心價值")
+    st.success(
+        "### 從「模型預測」走向「風控決策」\n\n"
+        "一般模型分析常著重於哪個模型的預測表現較好。"
+        "本系統進一步考慮**漏報、誤報、風險門檻與有限審核資源**，"
+        "並將模型結果轉換成 **Pass、OTP / 3DS、Manual Review、Block** 等決策資訊。\n\n"
+        "因此，本網站的重點不只是「找出詐欺」，也在呈現**金融機構如何根據模型資訊做風險管理決策**。"
+    )
+
+    st.markdown("### 06｜網站各頁面可以看到什麼？")
+    guide_df = pd.DataFrame({
+        "頁面": [
+            "🏠 風控總覽",
+            "⚡ 近即時交易回放",
+            "🤖 模型競技場",
+            "💰 成本敏感實驗室",
+            "🎚️ 風控策略模擬器",
+            "🔍 XAI 模型解釋",
+        ],
+        "主要用途": [
+            "快速掌握真實詐欺率、模型警報率與整體風控結果。",
+            "查看單筆交易如何從模型分數轉換成風控處置。",
+            "公平比較三種模型在共同 Test Set 上的表現。",
+            "了解不同 FN / FP 成本設定如何影響最佳門檻。",
+            "自行調整 Threshold，觀察警報、誤報、漏報與成本變化。",
+            "理解 XGBoost 的重要特徵，並區分詐欺機率與異常分數。",
+        ],
+    })
+    st.dataframe(guide_df, use_container_width=True, hide_index=True)
+
+    st.warning(
+        "**系統定位：**本網站使用歷史信用卡交易資料建立風控決策研究原型，"
+        "並以近即時交易回放方式展示模型應用。系統並未直接串接銀行核心交易系統，"
+        "網站中的風控處置與損失估計屬研究模擬。"
     )
 
 st.markdown("---")
