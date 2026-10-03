@@ -1,0 +1,107 @@
+{
+  "dataset": {
+    "total_n": 284807,
+    "fraud_n": 492,
+    "fraud_rate": 0.001727485630620034,
+    "train_n": 199364,
+    "validation_n": 42721,
+    "test_n": 42722,
+    "test_fraud_n": 52,
+    "split": "chronological_70_15_15"
+  },
+  "models": {
+    "Logistic Regression": {
+      "threshold": 0.5,
+      "pr_auc": 0.7152711581981825,
+      "roc_auc": 0.9744409240864595,
+      "precision": 0.044598612487611496,
+      "recall": 0.8653846153846154,
+      "f1": 0.08482563619227144,
+      "tn": 41706,
+      "fp": 964,
+      "fn": 7,
+      "tp": 45
+    },
+    "Isolation Forest": {
+      "threshold": -0.07014179381352151,
+      "pr_auc": 0.03372311874180926,
+      "roc_auc": 0.9305898577635161,
+      "precision": 0.059113300492610835,
+      "recall": 0.46153846153846156,
+      "f1": 0.10480349344978165,
+      "tn": 42288,
+      "fp": 382,
+      "fn": 28,
+      "tp": 24
+    },
+    "XGBoost": {
+      "threshold": 0.8150000000000001,
+      "pr_auc": 0.7653279277798579,
+      "roc_auc": 0.9761668259090335,
+      "precision": 0.8125,
+      "recall": 0.75,
+      "f1": 0.78,
+      "tn": 42661,
+      "fp": 9,
+      "fn": 13,
+      "tp": 39
+    }
+  },
+  "cost_scenarios": {
+    "5:1": {
+      "cost_fn": 5,
+      "cost_fp": 1,
+      "validation_best_threshold": 0.8150000000000001,
+      "validation_weighted_cost": 62,
+      "test_tn": 42661,
+      "test_fp": 9,
+      "test_fn": 13,
+      "test_tp": 39,
+      "test_weighted_cost": 74,
+      "false_positives_per_10k_normal": 2.1092102179517225
+    },
+    "10:1": {
+      "cost_fn": 10,
+      "cost_fp": 1,
+      "validation_best_threshold": 0.8150000000000001,
+      "validation_weighted_cost": 122,
+      "test_tn": 42661,
+      "test_fp": 9,
+      "test_fn": 13,
+      "test_tp": 39,
+      "test_weighted_cost": 139,
+      "false_positives_per_10k_normal": 2.1092102179517225
+    },
+    "20:1": {
+      "cost_fn": 20,
+      "cost_fp": 1,
+      "validation_best_threshold": 0.122,
+      "validation_weighted_cost": 202,
+      "test_tn": 42586,
+      "test_fp": 84,
+      "test_fn": 12,
+      "test_tp": 40,
+      "test_weighted_cost": 324,
+      "false_positives_per_10k_normal": 19.685962034216075
+    }
+  },
+  "top_k": {
+    "100": {
+      "k": 100,
+      "hits": 40,
+      "precision_at_k": 0.4,
+      "recall_at_k": 0.7692307692307693
+    },
+    "300": {
+      "k": 300,
+      "hits": 42,
+      "precision_at_k": 0.14,
+      "recall_at_k": 0.8076923076923077
+    }
+  },
+  "base_scenario": {
+    "cost_ratio": "10:1",
+    "threshold": 0.8150000000000001,
+    "captured_fraud_amount": 3796.48
+  }
+}
